@@ -1,0 +1,195 @@
+```{r}
+
+library("mice")
+library("magrittr")
+
+require(ggplot2)
+```
+
+```{r}
+data(airquality)
+
+colSums(is.na(airquality))
+
+```
+
+```{r}
+md.pattern(airquality) # from mice package
+```
+
+```{r}
+sum(complete.cases(airquality))
+```
+
+# Deletion methods
+
+## Pairwise deletion example
+
+```{r}
+data <- airquality[, c("Ozone", "Solar.R", "Wind")]
+sum(complete.cases(airquality))
+```
+
+Here two statistics are computed from the data: means and covariance
+
+### Means with pairwise deletion
+
+When taking the mean of each column, you can drop only the observations with missing values on that column (in complete case-analysis, even if the sample had values missing on other columns only, it would have been dropped).
+
+```{r}
+
+mu.listwise <- colMeans(na.omit(data))
+mu.pairwise <- colMeans(data, na.rm = TRUE)
+mu.difference <- mu.listwise-mu.pairwise
+rbind(mu.listwise, mu.pairwise, mu.difference)
+```
+
+There is a difference between both methods, although not significant (Wilcoxon test)
+
+```{r}
+shapiro.test(mu.difference)
+```
+
+```{r}
+
+wilcox.test(mu.listwise, mu.pairwise, paired = TRUE, alternative = "two.sided")
+```
+
+### Covariance with pairwise deletion
+
+When computing covariance, a similar reasoning can be done: only drop observations if values on one of the two considered variables are missing. To do that in R you can give the argument `use="pairwise"`.
+
+```{r}
+cv <- cov(data, use = "pairwise")
+cv
+```
+
+```{r}
+library("lattice")
+levelplot(cv, col.regions = topo.colors(100))
+```
+
+# Simple Imputation 
+
+## Mean imputation
+
+```{r}
+imp <- mice(airquality, method = "mean", m = 1, maxit = 1)
+imp$imp
+xyplot(imp, Ozone ~ Solar.R)
+```
+
+```{r}
+mu.mean <- colMeans(mice::complete(imp))
+mu.mean
+```
+
+```{r}
+fit <- with(imp, lm(Ozone ~ Wind + Temp + Solar.R))
+summary(fit,fit.measures=TRUE, rsquare=TRUE, standardize=TRUE)
+```
+
+## Regression imputation
+
+```{r}
+imp <- mice(airquality, method = "norm.predict", seed = 1,
+           m = 1, print = FALSE)
+imp$imp
+xyplot(imp, Ozone ~ Solar.R)
+```
+
+```{r}
+mu.reg <- colMeans(mice::complete(imp))
+mu.reg
+```
+
+```{r}
+fit <- with(imp, lm(Ozone ~ Wind + Temp + Solar.R))
+summary(fit,fit.measures=TRUE, rsquare=TRUE, standardize=TRUE)
+```
+
+## Stochastic non-Bayesian regression imputation
+
+```{r}
+imp <- mice(airquality, method = "norm.nob", m = 1, maxit = 1,
+            seed = 1, print = FALSE)
+fit <- with(imp, lm(Ozone ~ Wind + Temp + Solar.R))
+xyplot(imp, Ozone ~ Solar.R)
+xyplot(imp, Ozone ~ Wind)
+```
+
+```{r}
+mu.sreg <- colMeans(mice::complete(imp))
+mu.sreg
+```
+
+```{r}
+fit <- with(imp, lm(Ozone ~ Wind + Temp + Solar.R))
+summary(fit,fit.measures=TRUE, rsquare=TRUE, standardize=TRUE)
+```
+
+## Bayesian regression imputation with normality assumption
+
+```{r}
+imp <- mice(airquality, seed = 1, m = 1, method="norm", print = FALSE)
+xyplot(imp, Ozone ~ Solar.R)
+```
+
+```{r}
+mu.breg <- colMeans(mice::complete(imp))
+mu.breg
+```
+
+```{r}
+fit <- with(imp, lm(Ozone ~ Wind + Temp + Solar.R))
+summary(fit)
+```
+
+# Multiple imputation
+
+### Bayesian regression imputation with normality assumption
+
+```{r}
+imp <- mice(airquality, seed = 1, m = 20, method="norm", print = FALSE)
+xyplot(imp, Ozone ~ Solar.R)
+xyplot(imp, Ozone ~ Solar.R)
+```
+
+```{r}
+fit <- with(imp, lm(Ozone ~ Wind + Temp + Solar.R))
+summary(pool(fit))
+```
+
+### Parallel Mean Matching
+
+```{r}
+imp <- mice(airquality, seed = 1, m = 20, method="pmm", print = FALSE)
+xyplot(imp, Ozone ~ Solar.R)
+```
+
+```{r}
+fit <- with(imp, lm(Ozone ~ Wind + Temp + Solar.R))
+summary(pool(fit))
+```
+
+# Full-information maximum likelihood
+
+In this example we fit a linear model using full-information ML. This is another way of working around the missing data and use all the available data.
+
+We use the `lavaan` package: [The lavaan Project (ugent.be)](https://lavaan.ugent.be/tutorial/est.html)
+
+Notice the first argument `model`. The first line tells lavaan to predict ozon from wind + solar.R plus intercept. Second line tells lavaan to also fit variance for Ozone variable.
+
+```{r}
+library(lavaan)
+
+fit<-sem(model="Ozone ~ 1 + Wind + Solar.R 
+          Ozone ~~ Ozone",
+          data=data,
+          missing='ML',
+          meanstructure=TRUE, 
+          fixed.x=FALSE)
+summary(fit, fit.measures=TRUE, rsquare=TRUE, standardize=TRUE)
+```
+
+## 

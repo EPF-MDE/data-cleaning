@@ -3,10 +3,10 @@ import requests
 import numpy as np
 import pandas as pd
 
-def download_data(url):
+def download_data(url, force_download=False, **read_csv_kwargs):
     # Donwload data if it is not in disk
     data_path = os.path.join('data', os.path.basename(url.split('?')[0]))
-    if not os.path.exists(data_path):
+    if not os.path.exists(data_path) or force_download:
         # ensure data dir is created
         os.makedirs('data', exist_ok=True)
         # request data from url
@@ -19,9 +19,8 @@ def download_data(url):
             # which we use as argument for the decoding
             f.write(response.content.decode(response.apparent_encoding))
 
-        print(response.apparent_encoding)
     # load to pandas dataframe
-    data = pd.read_csv(data_path)
+    data = pd.read_csv(data_path, **read_csv_kwargs)
     return data
 
 
@@ -92,4 +91,4 @@ def load_clean_dataframe(df:pd.DataFrame)-> pd.DataFrame:
 
 # if the module is called, run the main loading function
 if __name__ == '__main__':
-    load_clean_dataframe()
+    load_clean_dataframe(download_data())
