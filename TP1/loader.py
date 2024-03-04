@@ -3,8 +3,8 @@ import requests
 import numpy as np
 import pandas as pd
 
-def download_data(url, force_download=False, **read_csv_kwargs):
-    # Donwload data if it is not in disk
+def download_data(url, force_download=False, ):
+    # Utility function to donwload data if it is not in disk
     data_path = os.path.join('data', os.path.basename(url.split('?')[0]))
     if not os.path.exists(data_path) or force_download:
         # ensure data dir is created
@@ -19,38 +19,15 @@ def download_data(url, force_download=False, **read_csv_kwargs):
             # which we use as argument for the decoding
             f.write(response.content.decode(response.apparent_encoding))
 
-    # load to pandas dataframe
-    data = pd.read_csv(data_path, **read_csv_kwargs)
-    return data
+    return data_path
 
 
-# Define formating functions per feature (column)
-
-def format_adr_num(df:pd.DataFrame) -> pd.DataFrame:
-    df = df.copy()
-    
-    df.loc[:, 'adr_num'] = (
-        df.adr_num
-        .astype(str)  # cast all elements to str type
-        .str.strip(' ') # trim leading and trailing whitespaces
-        # complete with other manipulations if necessary
-    )
-    
-    return df
-
-
-# and so on.... complete with all the other functions
-
-
-# once they are all done, call them in the general formatting function
-def format_dataframe(df:pd.DataFrame) -> pd.DataFrame:
-    """ One function to do all formatting"""
-    df = (df.pipe(format_adr_num)
-            # .pipe(format_adr_voie)
-            # .pipe(format_com_cp)
-            # .pipe(format_com_nom)
-            # ... addor others (or remove) if necessary
-          )
+def load_formatted_dataframe(data_fname:str) -> pd.DataFrame:
+    """ One function to read csv into a dataframe with appropriate types/formats"""
+    df = pd.read_csv(
+        data_fname,
+        ...
+        )
     return df
 
 
@@ -79,11 +56,10 @@ def sanitize_dataframe(df:pd.DataFrame) -> pd.DataFrame:
 
 
 
-
 # once they are all done, call them in the general clean loading function
-def load_clean_dataframe(df:pd.DataFrame)-> pd.DataFrame:
+def load_clean_data(df:pd.DataFrame)-> pd.DataFrame:
     """one function to run it all and return a clean dataframe"""
-    df = (df.pipe(format_dataframe)
+    df = (df.pipe(load_formatted_dataframe)
           .pipe(sanitize_dataframe)
     )
     return df
@@ -91,4 +67,4 @@ def load_clean_dataframe(df:pd.DataFrame)-> pd.DataFrame:
 
 # if the module is called, run the main loading function
 if __name__ == '__main__':
-    load_clean_dataframe(download_data())
+    load_clean_data(download_data())
