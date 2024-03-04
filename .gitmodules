@@ -1,0 +1,3 @@
+[submodule "TP1/TP1-student-fork"]
+	path = TP1/TP1-student-fork
+	url = git@github.com:EPF-MDE/data-clean-TP1.git
