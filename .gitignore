@@ -131,3 +131,4 @@ dmypy.json
 # ignore all vscode stuff
 .vscode
 *.code-workspace
+.virtual_documents/*
